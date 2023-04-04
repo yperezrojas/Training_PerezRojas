@@ -1,0 +1,63 @@
+---
+title: "Introduction to RMarkdown"
+author: "Yulissa T. Perez Rojas"
+date: "2023-04-03"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+bibliography: references.bib
+reference-section-title: Reference
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Markdown
+
+## This is a header
+
+-   This is **bold**
+-   This is *italic*
+
+## Syntax for my reseach
+
+-   To write subscript use the \~ so CO~2~
+-   Add links by using the brackets [Link]
+    -   Link to AmeriFlux [<https://ameriflux.lbl.gov/>]
+-   Adding citations, use the Visual tab instead of the Source tab then click insert.
+    -   Click citation and add DOI [@oke2020]
+
+## Adding Tables
+
+-   To add tables, work on the Visual tab because it creates the syntax structure
+
+    | Col1 | Col2 | Col3 |
+    |------|------|------|
+    |      |      |      |
+    |      |      |      |
+    |      |      |      |
+
+: This is an example
+
+## R Code chunks
+
+-   Window shortcut is Control + Alt + i
+-   Press the forward error to run code or use Control + Enter
+
+```{r example}
+heights_ft <- c(5.2, 6.0, 5.7)
+
+important_coef <- 3.14
+
+
+```
+
+# Exercise: New Chunck
+
+```{r}
+cat_years <- c(2, 6, 12, 1)
+
+mean(cat_years)
+```
