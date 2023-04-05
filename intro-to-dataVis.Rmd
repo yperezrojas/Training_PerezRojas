@@ -1,0 +1,143 @@
+---
+title: "Intro to Data Visualization"
+author: "Yulissa T. Perez Rojas"
+date: "2023-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages
+```{r load packages, warning=FALSE, message=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(forcats)
+library(ggplot2)
+library(leaflet)
+library(DT)
+library(scales)
+
+```
+
+## Read data
+```{r  read data, warning=FALSE, message=FALSE}
+escape <- read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e")
+```
+
+## About data
+This data was collected (here)[https://knb.ecoinformatics.org/view/doi%3A10.5063%2FP26WJJ]
+
+## Explore data
+```{r explore}
+
+colnames(escape)
+
+head(escape)
+
+glimpse(escape)
+
+range(escape$sampleDate)
+
+unique(escape$Species)
+
+```
+
+
+## Getting data ready to plot
+```{r wrangling}
+
+annual_esc <- escape %>% 
+  separate(sampleDate, c("Year", "Month", "Day"), sep = "-") %>% 
+  mutate(Year = as.numeric(Year)) %>% 
+  group_by(Species, SASAP.Region, Year) %>% 
+  summarize(escapement = sum(DailyCount)) %>% 
+  filter(Species %in% c("Chinook", "Sockeye", "Chum", "Coho", "Pink"))
+
+unique(annual_esc$Species)
+
+
+```
+
+## Plotting with `ggplot()`
+
+## Essential components
+```{r essen}
+
+##option 1 
+ggplot(data = annual_esc,
+       aes(x = Species, y = escapement)) +
+    geom_col()
+
+##option 2
+ggplot(data = annual_esc) +
+    geom_col(aes(x = Species, y = escapement))
+
+##option 3
+ggplot() +
+    geom_col(data = annual_esc,
+             aes(x = Species, y = escapement))
+
+```
+
+
+**Different geoms**
+```{r plot}
+
+annual_esc %>% 
+  filter(Year == 1974,
+         Species %in% c("Chum", "Pink")) %>% 
+  ggplot(aes(x = Species,
+             y = escapement)) +
+  geom_boxplot()
+
+```
+
+
+**Violin Plot**
+```{r violin}
+
+annual_esc %>%
+    filter(Year == 1974,
+           Species %in% c("Chum", "Pink")) %>%
+    ggplot(aes(x = Species, y = escapement)) +
+    geom_violin()
+
+```
+
+**Line and Point**
+```{r line}
+annual_esc %>%
+    filter(Species  == "Sockeye",
+           SASAP.Region == "Bristol Bay") %>%
+    ggplot(aes(x = Year, y = escapement)) +
+    geom_line() +
+    geom_point()
+
+```
+
+
+### Customizing plot
+Fill = "blue" outside `aes()` to actually color the columns. If its inside the eas function, it will not work since it think it's a variable
+```{r custom}
+
+ggplot(data = annual_esc,
+       aes(x = Species,
+           y =  escapement)) +
+  
+  geom_col(fill = "blue")
+
+```
+
+Adding color by region
+```{r region color}
+
+ggplot(annual_esc,
+       aes(x = Species, y = escapement,
+           fill = SASAP.Region)) +
+    geom_col()
+
+```
+
