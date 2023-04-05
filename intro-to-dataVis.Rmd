@@ -336,4 +336,17 @@ leaflet(location) %>%
 
 ```
 
+## Saving map as pgn
+```{r saving map}
+
+ test <-leaflet(location) %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~Longitude,
+             lat = ~ Latitude,
+             popup = ~ location)
+
+
+webshot(test, file = "figs/test.png")
+
+```
 
