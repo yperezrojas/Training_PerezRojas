@@ -250,7 +250,7 @@ Creating interactive map
 m <- leaflet(options = leafletOptions(crs = epsg3338)) %>% 
      addPolygons(data = pop_region_4326,
                 fillColor = "lightgreen",
-                weight = 1) %>% 
+                weight = 1)
   
 m
 ```
