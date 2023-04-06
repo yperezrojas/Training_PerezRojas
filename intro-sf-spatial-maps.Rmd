@@ -1,0 +1,256 @@
+---
+title: "Intro to sf package for spatial data and making maps"
+author: "Yulissa T. Perez Rojas"
+date: "2023-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r load, warning=FALSE, message=FALSE}
+library(readr)
+library(sf)
+library(ggplot2)
+library(leaflet)
+library(scales)
+library(ggmap) # base maps to static maps
+library(dplyr)
+
+```
+
+## Working Data
+
+This data was downloaded from this [link](https://dev.nceas.ucsb.edu/view/urn:uuid:6f07cb25-a4a1-48e8-95cb-74f532f3ce2d)
+
+```{r upload data}
+
+ak_regions <- read_sf("data/ak_regions_simp.shp")
+
+```
+
+## Explore AK Regions data
+
+```{r explore}
+
+plot(ak_regions)
+
+head(ak_regions)
+
+glimpse(ak_regions)
+
+```
+
+## Information about CRS
+
+```{r crs info}
+
+st_crs(ak_regions)
+
+```
+
+### Transform CRS
+
+Need to unprojected to projected geometry to be able to plot in a flat surface
+
+```{r transform}
+
+ak_regions_3338 <- ak_regions %>% 
+  st_transform(crs = 3338)
+
+# Check transformation
+plot(ak_regions_3338)
+
+```
+
+## sf & tidyverse
+
+```{r sf & tidyverse}
+
+colnames(ak_regions_3338)
+
+ak_regions_3338 %>% 
+  select(region)
+
+```
+
+From all the regions only pick one using `filter()`
+
+```{r filter}
+
+ak_regions_3338 %>% 
+  filter(region == "Yukon")
+
+```
+
+## Spatial Join
+
+How many people live in each of these Alaska regions? (5 Steps)
+
+```{r pop upload}
+
+pop <- read_csv("data/alaska_population.csv")
+
+class(pop)
+
+```
+
+Step 1: The population data is in a table (data.frame) and for mapping it needs to be spatial object. To do so, use `st_as_sf ()`
+
+```{r pop data change}
+
+pop_4326 <- st_as_sf(pop,
+                     coords = c("lng", "lat"),
+                      crs = 4326,
+                     remove = FALSE)
+class(pop_4326)
+```
+
+Step 2: Now that population is in a spatial object (unprojected). Next, step is to transform it to projected in order for all spatial objects to be the same type (projected).
+
+```{r pop transform}
+pop_3338 <- st_transform(pop_4326, crs = 3338)
+
+st_crs(pop_3338)
+```
+
+Step 3: We need to join the population data with region geometry by using `st_join()` In addition, we are using the `st_within()` function to get the total populations the regions
+
+```{r join pop and region}
+
+pop_joined <- st_join(pop_3338, ak_regions_3338, join = st_within)
+
+```
+
+Step 4: To use `group_by()` function, need to change spatial object to data.frame.
+
+```{r join pop and region pt.2 }
+
+pop_region <- pop_joined %>% 
+  as.data.frame() %>% 
+  group_by(region) %>% 
+  summarise(total_pop = sum(population)) 
+
+```
+
+Step 5: Use a regular `left_join()` to get the information back to the Alaska region **shapefile**.
+
+```{r pop ~ region}
+
+pop_region_3338 <- left_join(ak_regions_3338, pop_region, by = "region")
+
+plot(pop_region_3338["total_pop"])
+
+```
+
+Total population by management data instead of region.
+
+```{r pop ~ managment area}
+
+pop_mgmt_338 <- pop_region_3338 %>%
+    group_by(mgmt_area) %>%
+    summarize(total_pop = sum(total_pop), do_union = FALSE) #preserved regions
+
+plot(pop_mgmt_338["total_pop"])
+
+```
+
+## Save spatial object to a new file
+
+Use `write_sf()`
+
+```{r save to new file}
+
+write_sf(pop_region_3338, "data/ak_regions_population.shp")
+```
+
+## Visualize with ggplot
+
+```{r plot pop ~ region}
+
+ggplot(pop_region_3338) +
+  geom_sf(aes(fill = log10(total_pop))) +
+  labs(fill = "Total Population") +
+  scale_fill_viridis_c(labels = comma)
+  
+
+```
+
+Adding rivers to data
+
+```{r add rivers}
+
+rivers <- read_sf("data/ak_rivers_simp.shp")
+
+st_crs(rivers)
+
+# Added 3338 after seeing the rivers shapefile is the same as alaska type "Alberts"
+rivers_3338 <- rivers
+
+```
+
+Plot with multiple data objects
+
+```{r plot layering}
+
+ggplot()+
+  geom_sf(pop_region_3338, mapping=aes(fill = total_pop))+
+  geom_sf(pop_3338, mapping=aes())+
+  geom_sf(rivers_3338, mapping=aes())
+
+```
+
+```{r fix plot layering}
+
+ggplot()+
+  geom_sf(pop_region_3338, mapping=aes(fill = total_pop))+
+  geom_sf(pop_3338, mapping=aes(), color = "red", size = 0.7)+
+  geom_sf(rivers_3338, mapping=aes(linewidth = StrOrder))+ #mess with river linewidth
+  scale_linewidth(range = c(0.05, 0.5), guide = "none")+ #making river lines skinny
+  scale_fill_viridis_c(labels = comma)+
+  labs(fill = "Total Population",
+       title = "Alaska Map Population")+
+  theme(
+    plot.title = element_text(hjust = 0.5))
+  
+
+```
+
+# Leaflet Interactive Map
+
+Using the `leafletCRS()` function allows you to creating a custom CRS for your data.
+
+```{r leaflet}
+
+epsg3338 <- leaflet::leafletCRS(
+    crsClass = "L.Proj.CRS",
+    code = "EPSG:3338",
+    proj4def =  "+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+    resolutions = 2 ^ (16:7)
+)
+
+```
+
+Transform projected (Alberts) to unprojected because for interactive map you need a 3D map for interactive map.
+
+```{r 4326 transform}
+
+pop_region_4326 <- pop_region_3338 %>% 
+  st_transform(crs = 4326)
+
+```
+
+Creating interactive map
+
+```{r interactive map}
+
+m <- leaflet(options = leafletOptions(crs = epsg3338)) %>% 
+     addPolygons(data = pop_region_4326,
+                fillColor = "lightgreen",
+                weight = 1) %>% 
+  
+m
+```
