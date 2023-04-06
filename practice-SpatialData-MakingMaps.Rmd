@@ -117,6 +117,28 @@ ggplot(pika_sf) +
 pika_sf_4326 <- pika_sf %>% 
   st_transform(crs = 4326)
 
+nwt_bbox <- c(left = -105.65, bottom = 40.04, right = -105.55, top = 40.1)
+
+nwt_basemap <- ggmap::get_stamenmap(nwt_bbox, zoom = 13, 
+                                    maptype = "terrain")
+
+ggmap(nwt_basemap) +
+  geom_sf(pika_sf_4326,
+            mapping = aes(color = Site, shape = Site),
+            inherit.aes = FALSE)+ 
+  labs(title = "Where Pikas are Located",
+       x = "Latidue",
+       y = "Longitude") +
+  theme(axis.text.x = element_text(angle = 45))
+  
+```
+
+### Interactive map
+```{r interactive}
+
+leaflet() %>% 
+  addTiles() %>% 
+  addCircles(data = pika_sf_4326, label = ~Station)
 
 ```
 
