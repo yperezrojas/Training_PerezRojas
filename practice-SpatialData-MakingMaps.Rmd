@@ -1,0 +1,122 @@
+---
+title: 'Practice: Wrangling Spatial Data & Making Maps'
+author: "Yulissa T. Perez Rojas"
+date: "2023-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Libraries
+```{r load libraries}
+library(readr)
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(ggmap)
+
+```
+
+## About Data
+This data was downloaded from this (site)[https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-nwt.268.1]. 
+
+```{r upload data, warning=FALSE, message=FALSE}
+
+pika <- read_csv("https://portal.edirepository.org/nis/dataviewer?packageid=knb-lter-nwt.268.1&entityid=43270add3532c7f3716404576cfb3f2c")
+
+evolution <- read_csv("https://portal.edirepository.org/nis/dataviewer?packageid=knb-lter-nwt.268.1&entityid=6a10b35988119d0462837f9bfa31dd2f")
+
+```
+
+## Explore Data
+```{r explore data}
+
+head(pika)
+glimpse(pika)
+glimpse(evolution)
+
+```
+
+## Clean Data
+
+### Pika Data Cleaning
+```{r pika clean data}
+
+pika_clean <- pika %>% 
+  select(-Notes, -Vial, -Plate, -Biweek) 
+
+
+# Changing character to factor 
+pika_clean <- pika_clean %>% 
+mutate(Station = as.factor(Station),
+        Site = as.factor(Site),
+        Sex = as.factor(Sex))
+
+
+# Spelling out abbreviations, use `recode()` to replace values within a vector 
+pika_clean <- pika_clean %>% 
+mutate(Site = recode(Site, CG = "Cable Gate", WK = "West Knoll",LL = "Long Lake"))
+
+
+# Order columns so Site is before Station, Sex after UTM-Northing
+pika_clean <- pika_clean %>% 
+  relocate(Site, .before = Station) %>% 
+  relocate(Sex, .after = UTM_Northing)
+
+```
+
+### Evolution Data Cleaning
+```{r habitat data cleaning}
+
+evolution_clean <- evolution %>% 
+  select(Station, Elev_M) %>% 
+  mutate(Station = as.factor(Station))
+
+```
+
+### Merging both clean datasets
+For good practice add the `by()`function
+```{r merge pika and evolution}
+
+pika_evo <- full_join(pika_clean, evolution_clean, by = "Station")
+
+```
+
+
+## Spatial Exploration and Making Maps
+
+### Convert Simple Figures 
+```{r sf object}
+
+pika_sf <- st_as_sf(x = pika_evo,
+                    coords = c("UTM_Easting", "UTM_Northing"))
+
+pika_sf <- st_set_crs(pika_sf, 26913)
+
+```
+
+### Plotting
+```{r plotting}
+
+ggplot(pika_sf) +
+  geom_sf(aes(color = Site, shape = Site))+
+  labs(title = "Where Pikas are Located",
+       x = "Latidue",
+       y = "Longitude") +
+  theme(axis.text.x = element_text(angle = 45))
+
+```
+
+### Creating a basemap
+```{r transform}
+
+pika_sf_4326 <- pika_sf %>% 
+  st_transform(crs = 4326)
+
+
+```
+
